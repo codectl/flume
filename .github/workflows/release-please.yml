@@ -7,7 +7,7 @@ on:
         description: 'release-please release type, e.g. terraform-module, go, simple'
         required: false
         type: string
-        default: terraform-module
+        default: go
 
 permissions:
   contents: read
