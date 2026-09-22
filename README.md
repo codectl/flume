@@ -1,7 +1,3 @@
 # flume
 
-One channel
-
-Every module
-
-No downstream leaks
+One channel, every module, no downstream leaks
