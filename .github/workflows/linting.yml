@@ -1,0 +1,94 @@
+name: linting
+
+on:
+  workflow_call:
+    inputs:
+      schema:
+        description: 'Compare resources and data sources against the provider schema'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  run-tflint:
+    name: linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: terraform-linters/setup-tflint@b480b8fcdaa6f2c577f8e4fa799e89e756bb7c93 # v6.2.2
+        with:
+          tflint_version: v0.47.0
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - run: |
+          tflint
+          terraform init -backend=false
+          terraform validate
+          terraform fmt -check -recursive
+
+  unit-tests:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - name: run terraform unit tests
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          files=(*.tftest.hcl tests/*.tftest.hcl)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no *.tftest.hcl files found, nothing to run"
+            exit 0
+          fi
+
+          echo "discovered ${#files[@]} test file(s): ${files[*]}"
+
+          log="${RUNNER_TEMP:-/tmp}/tftest.log"
+
+          terraform init -backend=false -no-color >/dev/null
+          terraform test -no-color | tee "$log"
+
+          if ! grep -qE '^Success! [1-9][0-9]* passed' "$log"; then
+            echo "::error::test files are present but no tests ran"
+            exit 1
+          fi
+
+  tests:
+    name: global tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: codectl/flume
+          path: called
+          persist-credentials: false
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: called/tests/go.mod
+          cache-dependency-path: called/tests/go.sum
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - working-directory: called/tests
+        run: go mod download
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: caller
+          fetch-depth: 0
+          persist-credentials: false
+      - working-directory: called/tests
+        run: go test -count=1 -v ./...
+        env:
+          MODULE_PATH: ${{ github.workspace }}/caller
+          SCHEMA: ${{ inputs.schema }}
