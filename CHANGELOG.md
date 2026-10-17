@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/codectl/flume/compare/v1.0.0...v1.1.0) (2026-10-17)
+
+
+### Features
+
+* **deps:** bump terraform-linters/setup-tflint from 6.2.2 to 6.3.2 ([#6](https://github.com/codectl/flume/issues/6)) ([ceb4258](https://github.com/codectl/flume/commit/ceb42581c7f3f048d4dd80f0dba49e3efe40bab0))
+
 ## 1.0.0 (2026-10-06)
 
 
